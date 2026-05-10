@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "badminton-impact-ai"
+version = "0.1.0"
+description = "Context-normalized high-impact landing detection from markerless badminton pose (BadmintonGRF Tier~1 derivatives)."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Badminton-Impact-AI Team" }]
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+train = [
+  "numpy>=1.23",
+  "pandas>=2.0",
+  "scipy>=1.10",
+  "scikit-learn>=1.3",
+  "torch>=2.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
