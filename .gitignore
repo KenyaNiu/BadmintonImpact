@@ -79,3 +79,6 @@ paper/build/
 /paper/*.bib
 /paper/*.pdf
 /tmp/
+
+# README charts
+!docs/assets/*.png
