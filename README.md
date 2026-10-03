@@ -10,8 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/prioritization_showcase_top3.png" alt="Top-3 landings of one trial, ranked by model score" width="92%">
-  <br><sub>Landings of one trial ranked by the model score: the coach reviews the top of the list first.</sub>
+  <img src="docs/assets/hero.png" alt="A single global force cut-off versus a cut-off per context, and the resulting top-20 % review list" width="100%">
 </p>
 
 ---
@@ -143,7 +142,7 @@ badminton-impact run     --config configs/experiments/main.yaml --run-dir output
 badminton-impact analyze --run-dir outputs/runs/corrected_q75
 ```
 
-Every run directory records the resolved configuration, input hashes, environment, cohort, splits, predictions, metrics, checkpoints and completion state. Acceptance gates are listed in [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md). The README charts are regenerated with `python3 docs/assets/make_readme_figures.py --run-dir outputs/runs/corrected_q75`.
+Every run directory records the resolved configuration, input hashes, environment, cohort, splits, predictions, metrics, checkpoints and completion state. Acceptance gates are listed in [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md). The README figures are regenerated with `python3 docs/assets/make_hero.py --prepared outputs/prepared --run-dir outputs/runs/corrected_q75` (header figure) and `python3 docs/assets/make_readme_figures.py --run-dir outputs/runs/corrected_q75` (result charts).
 
 ---
 
