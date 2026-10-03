@@ -1,0 +1,35 @@
+data:
+  labels: outputs/prepared/context_labels_event_q75.csv
+  features: outputs/prepared/pose_features_unique.npz
+  feature_meta: outputs/prepared/pose_features_unique_meta.csv
+  expected_test_views: 17267
+  expected_test_impacts: 2242
+
+training:
+  seed: 42
+  split_seed: 42
+  val_ratio: 0.15
+  epochs: 60
+  patience: 10
+  batch_size: 256
+  learning_rate: 0.001
+  hidden_dim: 128
+  aux_loss_weight: 0.5
+  device: auto
+
+models:
+  - name: sequence_attention
+  - name: bigru
+  - name: transformer
+  - name: stgcn_light
+  - name: no_attention_pool
+  - name: no_context
+  - name: no_stats
+  - name: mean_pool
+  - name: cn_hildnet
+    task_mode: cls_only
+
+evaluation:
+  top_fraction: 0.20
+  bootstrap_draws: 10000
+  statistical_seed: 42

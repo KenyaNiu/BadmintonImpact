@@ -1,131 +1,84 @@
 # BadmintonImpact
 
-[![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+Reproducible code for **context-normalized landing-impact ranking from markerless pose**. The evaluated input is a pre-segmented, impact-aligned badminton landing window; the output is a score used to prioritize high-impact events for coach review.
 
-Markerless 2D pose → landing-impact scores on **BadmintonGRF Tier&nbsp;1** windows; training is **LOSO**, inference uses **pre-segmented** clips only.
+This repository does not claim continuous-video landing detection, absolute GRF estimation, injury-risk prediction, or autonomous coaching. The exact claim and evaluation lock are in [`docs/RESEARCH_CONTRACT.md`](docs/RESEARCH_CONTRACT.md).
 
-<p align="center">
-  <img src="docs/prioritization_showcase_top3.png" alt="Example: clips ranked by model score within one protocol block" width="92%">
-</p>
-
----
-
-## Setup
-
-**Stack:** Linux x86_64, Python **3.10**, GPU optional for deep LOSO (CPU OK for HGB). Tier&nbsp;1 data is read-only; paths are passed on the CLI.
-
-**Conda** (`environment.yml`; env name `badminton_grf`):
-
-```bash
-conda env create -f environment.yml
-conda activate badminton_grf
-pip install -e ".[dev,train]"
-```
-
-Refresh env after editing `environment.yml`:
-
-```bash
-conda env update -f environment.yml --prune
-```
-
-**venv + pip:**
-
-```bash
-python3.10 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -U pip && pip install -e ".[dev,train]"
-pip install torch torchvision   # pick CUDA/CPU: https://pytorch.org/get-started/locally/
-```
-
----
-
-## Usage
-
-Run from the **repository root** with **`python3`** (matches `environment.yml`). Point **`--data-root`** at the Tier‑1 tree (defaults to `data/BadmintonGRF-data`). Prefer **one symlink to the dataset root** — nested “fake trees” made only from per-subject symlinks may not be traversed the same way by the walker in step **1**.
-
-Step **1** must see **multiple subjects** under `--data-root`; if only one subject is scanned, step **2** can fail (empty LOSO train stats).
-
-**Rough runtime** on a full Tier‑1 mirror (~18k NPZ files on this repo’s reference machine): step **1** ~10–20 s, step **2** ~1–2 s, step **3** ~2–3 min (NPZ IO bound). Training time depends on folds and GPU.
-
-```bash
-mkdir -p outputs
-
-ln -sf /path/to/BadmintonGRF/data data/BadmintonGRF-data    # optional; fixes default --data-root
-
-# 1) Contact-state labels
-python3 tools/extract_contact_labels_full.py \
-  --out-csv outputs/contact_labels.csv \
-  --out-audit outputs/contact_labels_audit.json
-
-# 2) LOSO context-normalized labels
-python3 tools/build_context_labels.py \
-  --labels outputs/contact_labels.csv \
-  --out-csv outputs/context_labels.csv \
-  --out-json outputs/context_meta.json
-
-# 3) Pose features
-python3 tools/build_pose_features.py \
-  --labels outputs/context_labels.csv \
-  --data-root data/BadmintonGRF-data \
-  --out-npz outputs/pose_features.npz \
-  --out-meta outputs/pose_meta.csv \
-  --out-report outputs/pose_report.json
-
-# 4a) HGB LOSO (default trains three input-set variants; narrow with --input-sets if you want)
-python3 training/train_hgb_loso.py \
-  --features outputs/pose_features.npz \
-  --feature-meta outputs/pose_meta.csv \
-  --context-labels outputs/context_labels.csv \
-  --out-dir outputs/hgb_loso
-
-# 4b) Deep LOSO
-python3 training/train_deep_loso.py \
-  --context-labels outputs/context_labels.csv \
-  --all-labels outputs/contact_labels.csv \
-  --features outputs/pose_features.npz \
-  --feature-meta outputs/pose_meta.csv \
-  --models icsi_hybrid_context \
-  --out-dir outputs/deep_loso
-```
-
-**Quick smoke (optional)** — tiny train job before a full LOSO sweep (`sub_001` → any `subject_id` from step **2**):
-
-```bash
-python3 training/train_deep_loso.py \
-  --context-labels outputs/context_labels.csv \
-  --all-labels outputs/contact_labels.csv \
-  --features outputs/pose_features.npz \
-  --feature-meta outputs/pose_meta.csv \
-  --models icsi_hybrid_context \
-  --folds sub_001 \
-  --epochs 1 \
-  --out-dir outputs/deep_smoke
-
-python3 training/train_hgb_loso.py \
-  --features outputs/pose_features.npz \
-  --feature-meta outputs/pose_meta.csv \
-  --context-labels outputs/context_labels.csv \
-  --input-sets pose_only \
-  --out-dir outputs/hgb_smoke
-```
-
-More flags: **`python3 <script.py> -h`** on each script.
-
----
+> **Version:** this release corresponds to the corrected canonical `q=0.75` protocol (event-level cohort, learned-attention pooling, one eligibility rule for all models). Results are regenerated from `outputs/runs/corrected_q75/`, which is created by the commands below and is not versioned. Earlier code (`src/`, `tools/`, `training/`) was superseded by this release.
 
 ## Repository layout
 
-| Path | Contents |
-|------|----------|
-| `environment.yml` | Conda env spec |
-| `training/` | `train_hgb_loso.py`, `train_deep_loso.py` |
-| `tools/` | Label extraction, context labels, pose features |
-| `src/data/`, `src/models/`, `src/metrics/` | Libraries used by the scripts above |
-| `docs/` | `prioritization_showcase_top3.png` |
-| `data/` | Gitignored; optional symlink for default `--data-root` |
+```text
+BadmintonImpact/
+├── badminton_impact_ai/ # all Python implementation and the single CLI
+├── configs/             # preparation and frozen experiment YAML
+├── docs/                # research contract, reproduction guide, data access form
+├── paper/figures/       # script that regenerates the result figures
+└── tests/               # unit and synthetic end-to-end tests
+```
 
----
+Generated data, checkpoints, predictions, and metrics belong under `outputs/` and are intentionally not versioned.
+
+The Python package has one-way responsibilities:
+
+| Path | Responsibility |
+|---|---|
+| `cli.py` | The only user-facing command; dispatches four workflow stages. |
+| `data/` | NPZ parsing, label construction, cohort rules, splits, and datasets. |
+| `models/` | CN-HiLDNet and comparison backbones. |
+| `experiment/` | Configuration, training, run provenance, analysis, and paper artifacts. |
+| `metrics/` | Per-model classification, regression, calibration, and ranking metrics. |
+| `stats/` | Fold-level paired statistical comparisons. |
+
+## Installation
+
+Python 3.10 or newer is required.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev,train]"
+pytest -q
+```
+
+## Reproduction
+
+Copy the preparation template and set `data_root` to the extracted BadmintonGRF Tier-1 directory. The source dataset is read-only.
+
+```bash
+cp configs/preparation.example.yaml configs/preparation.local.yaml
+badminton-impact prepare --config configs/preparation.local.yaml
+
+badminton-impact run \
+  --config configs/experiments/main.yaml \
+  --run-dir outputs/runs/corrected_q75 \
+  --check-only
+
+badminton-impact run \
+  --config configs/experiments/smoke.yaml \
+  --run-dir outputs/runs/smoke
+badminton-impact analyze --run-dir outputs/runs/smoke
+```
+
+Run the full configuration only after the smoke run passes:
+
+```bash
+badminton-impact run \
+  --config configs/experiments/main.yaml \
+  --run-dir outputs/runs/corrected_q75 \
+  --resume
+badminton-impact analyze --run-dir outputs/runs/corrected_q75
+badminton-impact artifacts \
+  --run-dir outputs/runs/corrected_q75 \
+  --out-dir paper/generated
+```
+
+Every experiment directory records the resolved configuration, input hashes, environment, cohort, splits, predictions, metrics, checkpoints, and completion state. See [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md) for acceptance gates.
+
+## Data access
+
+The processed BadmintonGRF data products are available through a controlled request process. Complete [`docs/BadmintonImpact_data_access_request_form.md`](docs/BadmintonImpact_data_access_request_form.md) and email it to the address given in the form. Dataset files are not included in this repository.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Code is released under the [MIT License](LICENSE). Dataset files retain the terms of their original release and are not included in this repository.

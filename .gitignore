@@ -70,3 +70,12 @@ build/
 !tools/
 !training/
 !tests/
+
+# --- Local run configuration, manuscript sources and build products (not published here) ---
+configs/preparation.local.yaml
+paper/generated/
+paper/build/
+/paper/*.tex
+/paper/*.bib
+/paper/*.pdf
+/tmp/
