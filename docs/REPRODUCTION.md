@@ -73,11 +73,11 @@ After analysis, generate paper-facing tables from that run only:
 badminton-impact analyze --run-dir outputs/runs/corrected_q75
 badminton-impact artifacts \
   --run-dir outputs/runs/corrected_q75 \
-  --out-dir paper/generated
+  --out-dir outputs/paper_artifacts
 
-python3 paper/figures/generate_result_figures.py \
+python3 scripts/generate_result_figures.py \
   --run-dir outputs/runs/corrected_q75 \
-  --output-dir paper/figures
+  --output-dir outputs/figures
 ```
 
 The three corrected result figures are generated as editable SVGs, LaTeX-ready vector PDFs, journal-upload EPS files, and 600-dpi TIFFs. Each figure also has a source-data CSV beside it. Their visual grammar follows the submitted figures, while every plotted value is regenerated from the corrected canonical run.

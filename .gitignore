@@ -43,7 +43,6 @@ archive/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-paper/build/
 archive_cleanup/
 
 # Python / tooling
@@ -73,12 +72,10 @@ build/
 
 # --- Local run configuration, manuscript sources and build products (not published here) ---
 configs/preparation.local.yaml
-paper/generated/
-paper/build/
-/paper/*.tex
-/paper/*.bib
-/paper/*.pdf
 /tmp/
 
 # README charts
 !docs/assets/*.png
+
+# Manuscript sources are kept out of this repository
+/paper/

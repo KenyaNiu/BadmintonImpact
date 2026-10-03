@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/hero.png" alt="A single global force cut-off versus a cut-off per context, and the resulting top-20 % review list" width="100%">
+  <img src="docs/assets/hero.png" alt="Video frames with 2D pose and force curve of one landing, and the ranked top-20 % review list of the same trial" width="100%">
 </p>
 
 ---
@@ -33,6 +33,10 @@ This is a scoring module for pre-segmented windows. It does **not** detect landi
 ---
 
 ## The idea in one figure
+
+<p align="center"><img src="docs/assets/idea.png" alt="A single force cut-off labels the drill; a cut-off per context labels relative severity; the ranked list is what the coach reviews" width="100%"></p>
+
+The pipeline end to end:
 
 ```mermaid
 flowchart LR
@@ -142,7 +146,7 @@ badminton-impact run     --config configs/experiments/main.yaml --run-dir output
 badminton-impact analyze --run-dir outputs/runs/corrected_q75
 ```
 
-Every run directory records the resolved configuration, input hashes, environment, cohort, splits, predictions, metrics, checkpoints and completion state. Acceptance gates are listed in [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md). The README figures are regenerated with `python3 docs/assets/make_hero.py --prepared outputs/prepared --run-dir outputs/runs/corrected_q75` (header figure) and `python3 docs/assets/make_readme_figures.py --run-dir outputs/runs/corrected_q75` (result charts).
+Every run directory records the resolved configuration, input hashes, environment, cohort, splits, predictions, metrics, checkpoints and completion state. Acceptance gates are listed in [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md). The README figures are regenerated with `docs/assets/make_hero.py` (header, needs the video data), `docs/assets/make_idea_figure.py` (concept figure) and `docs/assets/make_readme_figures.py` (result charts), each taking `--run-dir outputs/runs/corrected_q75`.
 
 ---
 
@@ -158,7 +162,7 @@ BadmintonImpact/
 │   └── stats/             # fold-level paired comparisons (bootstrap CI, Wilcoxon)
 ├── configs/               # preparation template and frozen experiment YAML
 ├── docs/                  # research contract, reproduction guide, data-access form, figures
-├── paper/figures/         # script that regenerates the result figures
+├── scripts/               # regenerates the result figures from a completed run
 └── tests/                 # unit and synthetic end-to-end tests
 ```
 

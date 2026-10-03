@@ -5,7 +5,7 @@ import pandas as pd
 
 
 def _figure_module():
-    path = Path(__file__).parents[1] / "paper" / "figures" / "generate_result_figures.py"
+    path = Path(__file__).parents[1] / "scripts" / "generate_result_figures.py"
     spec = spec_from_file_location("generate_result_figures", path)
     module = module_from_spec(spec)
     assert spec.loader is not None

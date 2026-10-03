@@ -26,7 +26,7 @@ plt.rcParams.update(
     }
 )
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from badminton_impact_ai.metrics.calibration import _probability_logistic, _temperature
 from badminton_impact_ai.stats import paired_fold_summary
 
