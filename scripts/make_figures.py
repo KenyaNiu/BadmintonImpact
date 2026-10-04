@@ -27,8 +27,8 @@ plt.rcParams.update(
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from badminton_impact_ai.metrics.calibration import _probability_logistic, _temperature
-from badminton_impact_ai.stats import paired_fold_summary
+from badminton_impact_ai.evaluation import paired_fold_summary
+from badminton_impact_ai.evaluation.calibration import _probability_logistic, _temperature
 
 BLUE = "#0072B2"
 ORANGE = "#E69F00"

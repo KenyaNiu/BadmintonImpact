@@ -1,6 +1,6 @@
 """Checks explicit Wilcoxon method selection."""
 
-from badminton_impact_ai.stats import paired_fold_summary
+from badminton_impact_ai.evaluation import paired_fold_summary
 
 
 def test_exact_wilcoxon_without_zero_differences() -> None:

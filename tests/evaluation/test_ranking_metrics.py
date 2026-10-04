@@ -1,6 +1,6 @@
 """Checks for event aggregation and fixed review-budget metrics."""
 
-from badminton_impact_ai.metrics import trial_top_fraction_metrics
+from badminton_impact_ai.evaluation import trial_top_fraction_metrics
 
 
 def test_top_fraction_aggregates_views_before_ranking() -> None:

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from badminton_impact_ai.data.cohort import sample_id
 from badminton_impact_ai.data.sequence_dataset import ContextEncoder, SequenceContactDataset, collate_sequence_batch
-from badminton_impact_ai.metrics import (
+from badminton_impact_ai.evaluation import (
     aggregate_unique_impact,
     compute_binary_metrics,
     compute_regression_metrics,

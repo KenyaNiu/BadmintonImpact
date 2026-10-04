@@ -1,6 +1,6 @@
 """Calibration mappings must fit validation rows and return both resolutions."""
 
-from badminton_impact_ai.metrics import calibrate_fold_predictions
+from badminton_impact_ai.evaluation import calibrate_fold_predictions
 
 
 def test_calibration_returns_named_methods() -> None:

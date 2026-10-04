@@ -22,7 +22,7 @@ logs/
 !docs/assets/*.png
 
 # Local configuration and secrets
-configs/preparation.local.yaml
+configs/prepare.local.yaml
 .env
 
 # Manuscript sources are kept out of this repository

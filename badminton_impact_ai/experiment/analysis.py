@@ -10,14 +10,14 @@ from typing import Any
 import numpy as np
 import yaml
 
-from badminton_impact_ai.io import read_csv, write_csv, write_json
-from badminton_impact_ai.metrics import (
+from badminton_impact_ai.evaluation import (
     aggregate_unique_impact,
     calibrate_fold_predictions,
     compute_binary_metrics,
+    paired_fold_summary,
     select_f1_threshold,
 )
-from badminton_impact_ai.stats import paired_fold_summary
+from badminton_impact_ai.io import read_csv, write_csv, write_json
 
 CANDIDATE, REFERENCE = "cn_hildnet", "hgb_pose_context"  # the paired comparison reported in the paper
 REVIEW_METRICS = ("precision_at_fraction", "recall_at_fraction", "ndcg_at_fraction")

@@ -13,11 +13,11 @@ pytest -q            # must pass before any data preparation or training
 
 ## 2. Prepare the data
 
-Copy `configs/preparation.example.yaml` to `configs/preparation.local.yaml`, set `data_root` to the read-only
+Copy `configs/prepare.example.yaml` to `configs/prepare.local.yaml`, set `data_root` to the read-only
 BadmintonGRF Tier-1 directory (do not commit the local file), then run:
 
 ```bash
-badminton-impact prepare --config configs/preparation.local.yaml
+badminton-impact prepare --config configs/prepare.local.yaml
 ```
 
 This writes event-weighted fold labels and one statistical-feature row per camera view to `outputs/prepared/`.
@@ -25,8 +25,8 @@ This writes event-weighted fold labels and one statistical-feature row per camer
 ## 3. Check, then run a smoke test
 
 ```bash
-badminton-impact run --config configs/experiments/main.yaml --run-dir outputs/runs/corrected_q75 --check-only
-badminton-impact run --config configs/experiments/smoke.yaml --run-dir outputs/runs/smoke
+badminton-impact run --config configs/main.yaml --run-dir outputs/runs/corrected_q75 --check-only
+badminton-impact run --config configs/smoke.yaml --run-dir outputs/runs/smoke
 badminton-impact analyze --run-dir outputs/runs/smoke
 ```
 
@@ -40,14 +40,13 @@ same command plus `--resume` and the identical resolved configuration; per-fold,
 the base seed, fold, model and task mode, so execution order and resuming do not change any initialisation.
 
 ```bash
-badminton-impact run --config configs/experiments/main.yaml --run-dir outputs/runs/corrected_q75   # add --resume to continue
+badminton-impact run --config configs/main.yaml --run-dir outputs/runs/corrected_q75   # add --resume to continue
 badminton-impact analyze --run-dir outputs/runs/corrected_q75
 badminton-impact artifacts --run-dir outputs/runs/corrected_q75 --out-dir outputs/paper_artifacts
-python3 scripts/generate_result_figures.py --run-dir outputs/runs/corrected_q75 --output-dir outputs/figures
+python3 scripts/make_figures.py --run-dir outputs/runs/corrected_q75 --output-dir outputs/figures
 ```
 
 The result figures are written as editable SVG, vector PDF, EPS and 600-dpi TIFF, each with a source-data CSV.
-The figures of the README are produced by `scripts/readme_figures/` (see the docstrings).
 
 ## 5. Run-directory contract
 

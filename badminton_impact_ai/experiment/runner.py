@@ -22,8 +22,8 @@ import yaml
 from badminton_impact_ai.data.cohort import exclusion_reason, filter_eligible_rows, sample_id
 from badminton_impact_ai.data.sequence_dataset import load_stat_features
 from badminton_impact_ai.data.splits import grouped_train_val_split
+from badminton_impact_ai.evaluation import trial_top_fraction_metrics
 from badminton_impact_ai.io import atomic_write_text, read_csv, sha256_file, write_csv, write_json
-from badminton_impact_ai.metrics import trial_top_fraction_metrics
 from badminton_impact_ai.models import DEEP_MODELS, HGB_MODELS
 
 from .reproducibility import derived_seed
