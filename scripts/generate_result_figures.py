@@ -5,17 +5,17 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 import numpy as np
 import pandas as pd
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 plt.rcParams.update(
     {
@@ -29,7 +29,6 @@ plt.rcParams.update(
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from badminton_impact_ai.metrics.calibration import _probability_logistic, _temperature
 from badminton_impact_ai.stats import paired_fold_summary
-
 
 BLUE = "#0072B2"
 ORANGE = "#E69F00"
@@ -233,7 +232,12 @@ def ablation_figure(run_dir: Path, output: Path) -> None:
     axis.set_axisbelow(True)
     fig.tight_layout(pad=0.55)
     pd.DataFrame(
-        {"variant": labels, "mean_drop": means.astype(float), "ci_95_low": lows.astype(float), "ci_95_high": highs.astype(float)}
+        {
+            "variant": labels,
+            "mean_drop": means.astype(float),
+            "ci_95_low": lows.astype(float),
+            "ci_95_high": highs.astype(float),
+        }
     ).to_csv(output.with_name(f"{output.stem}_source_data.csv"), index=False)
     _save(fig, output)
 
@@ -255,7 +259,9 @@ def rally_figure(run_dir: Path, output: Path) -> None:
     x = np.arange(len(models))
     width = 0.34
     source_rows = []
-    for panel, axis, metric, title in zip(["a", "b", "c"], axes, ["AUROC", "AUPRC", "F1"], ["AUROC", "AUPRC", "F1 score"]):
+    for panel, axis, metric, title in zip(
+        ["a", "b", "c"], axes, ["AUROC", "AUPRC", "F1"], ["AUROC", "AUPRC", "F1 score"]
+    ):
         for group, offset, hatch in [
             ("non_rally", -width / 2, ""),
             ("rally", width / 2, "//"),

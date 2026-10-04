@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import torch
 
-from badminton_impact_ai.models import BiGRUBaseline, CNHiLDNet, SequenceAttentionBaseline
+from badminton_impact_ai.models import CNHiLDNet, build_deep_model
 
 
 def test_attention_is_normalized_and_has_no_cancelling_token() -> None:
-    model = SequenceAttentionBaseline(seq_dim=34, hidden_dim=16)
+    model = build_deep_model("sequence_attention", stat_dim=16, context_dim=9, hidden_dim=16)
     x = torch.randn(2, 5, 34)
     mask = torch.tensor([[1, 1, 1, 0, 0], [1, 1, 1, 1, 1]], dtype=torch.float32)
     _, alpha = model.pool(x, mask)
@@ -18,7 +18,8 @@ def test_attention_is_normalized_and_has_no_cancelling_token() -> None:
 
 
 def test_variable_length_predictions_do_not_depend_on_batch_padding() -> None:
-    for model in (SequenceAttentionBaseline(seq_dim=34, hidden_dim=16), BiGRUBaseline(seq_dim=34, hidden_dim=16)):
+    for name in ("sequence_attention", "bigru"):
+        model = build_deep_model(name, stat_dim=16, context_dim=9, hidden_dim=16)
         model.eval()
         short = torch.randn(1, 5, 34)
         single_mask = torch.ones(1, 5)

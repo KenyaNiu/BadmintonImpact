@@ -20,7 +20,10 @@ def paired_fold_summary(
     differences = np.asarray([values_a[fold] - values_b[fold] for fold in folds], dtype=float)
     rng = np.random.default_rng(seed)
     bootstrap = np.asarray(
-        [float(np.mean(differences[rng.integers(0, len(differences), len(differences))])) for _ in range(bootstrap_draws)]
+        [
+            float(np.mean(differences[rng.integers(0, len(differences), len(differences))]))
+            for _ in range(bootstrap_draws)
+        ]
     )
     method = "exact" if not np.any(differences == 0) else "approx"
     if np.all(differences == 0):

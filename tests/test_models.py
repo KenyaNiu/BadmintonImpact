@@ -1,44 +1,27 @@
-"""Forward-pass smoke tests for canonical neural models."""
+"""Forward-pass smoke tests for every registered neural model."""
 
 from __future__ import annotations
 
+import pytest
 import torch
 
-from badminton_impact_ai.models import CNHiLDNet, CNHiLDNetMeanPool, DeepTCNBaseline, SequenceAttentionBaseline
+from badminton_impact_ai.models import DEEP_MODELS, build_deep_model
+
+B, T, D = 4, 120, 34
 
 
-def test_models_forward_shapes() -> None:
-    b, t, d = 4, 120, 34
-    x_seq = torch.randn(b, t, d)
-    mask = torch.ones(b, t)
-    x_stat = torch.randn(b, 16)
-    x_ctx = torch.randn(b, 9)
+@pytest.mark.parametrize("name", sorted(DEEP_MODELS))
+def test_forward_shapes(name: str) -> None:
+    model = build_deep_model(name, stat_dim=16, context_dim=9, hidden_dim=64)
+    output = model(torch.randn(B, T, D), torch.ones(B, T), torch.randn(B, 9), torch.randn(B, 16))
+    assert set(output) == {"cls_logits", "peak_pred"}
+    assert output["cls_logits"].shape == output["peak_pred"].shape == (B,)
 
-    models = [
-        DeepTCNBaseline(seq_dim=d, hidden_dim=64),
-        SequenceAttentionBaseline(seq_dim=d, hidden_dim=64),
-        CNHiLDNet(seq_dim=d, stat_dim=16, context_dim=9, hidden_dim=64),
-    ]
-    for m in models:
-        out = m(x_seq=x_seq, seq_mask=mask, x_context=x_ctx, x_stat=x_stat)
-        assert set(out.keys()) == {"cls_logits", "peak_pred"}
-        for k in out:
-            assert out[k].shape[0] == b
 
-    hy = CNHiLDNet(seq_dim=d, stat_dim=16, context_dim=9, hidden_dim=64)
-    out_d = hy(
-        x_seq=x_seq,
-        seq_mask=mask,
-        x_context=x_ctx,
-        x_stat=x_stat,
-        return_diagnostics=True,
+def test_full_model_diagnostics() -> None:
+    model = build_deep_model("cn_hildnet", stat_dim=16, context_dim=9, hidden_dim=64)
+    output = model(
+        torch.randn(B, T, D), torch.ones(B, T), torch.randn(B, 9), torch.randn(B, 16), return_diagnostics=True
     )
-    assert out_d["attn_alpha"].shape == (b, x_seq.shape[1])
-    assert out_d["g_fused"].shape == (b, 64)
-    out_z = hy(x_seq=x_seq, seq_mask=mask, x_context=x_ctx, x_stat=x_stat, zero_context=True)
-    assert "cls_logits" in out_z
-
-    mp = CNHiLDNetMeanPool(seq_dim=d, stat_dim=16, context_dim=9, hidden_dim=64)
-    out_mp = mp(x_seq=x_seq, seq_mask=mask, x_context=x_ctx, x_stat=x_stat)
-    assert set(out_mp.keys()) == {"cls_logits", "peak_pred"}
-    assert out_mp["cls_logits"].shape == (b,)
+    assert output["attn_alpha"].shape == (B, T)
+    assert output["g_fused"].shape == (B, 64)

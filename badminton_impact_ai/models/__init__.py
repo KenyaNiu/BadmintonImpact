@@ -1,27 +1,15 @@
 """Models used by the canonical BadmintonImpact experiments."""
 
-from .cn_hildnet import (
-    BiGRUBaseline,
-    CNHiLDNet,
-    CNHiLDNetMeanPool,
-    CNHiLDNetNoAttention,
-    CNHiLDNetNoContext,
-    CNHiLDNetNoStats,
-    DeepTCNBaseline,
-    SequenceAttentionBaseline,
-    STGCNLightBaseline,
-    TemporalTransformerBaseline,
-)
+from .networks import CNHiLDNet, RankingHeads, SequenceBaseline
+from .registry import DEEP_MODELS, HGB_MODELS, build_deep_model, uses_context, uses_stats
 
 __all__ = [
-    "BiGRUBaseline",
+    "DEEP_MODELS",
+    "HGB_MODELS",
     "CNHiLDNet",
-    "CNHiLDNetMeanPool",
-    "CNHiLDNetNoAttention",
-    "CNHiLDNetNoContext",
-    "CNHiLDNetNoStats",
-    "DeepTCNBaseline",
-    "SequenceAttentionBaseline",
-    "STGCNLightBaseline",
-    "TemporalTransformerBaseline",
+    "RankingHeads",
+    "SequenceBaseline",
+    "build_deep_model",
+    "uses_context",
+    "uses_stats",
 ]

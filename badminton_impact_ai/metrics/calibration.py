@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
-from .classification import aggregate_unique_impact, compute_binary_metrics
-
-
-def _threshold(labels: np.ndarray, scores: np.ndarray) -> float:
-    from sklearn.metrics import f1_score
-
-    candidates = np.linspace(0.05, 0.95, 37)
-    return float(max(candidates, key=lambda value: f1_score(labels, scores >= value, zero_division=0)))
+from .classification import aggregate_unique_impact, compute_binary_metrics, select_f1_threshold
 
 
 def _probability_logistic(labels: np.ndarray, scores: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
@@ -64,7 +58,7 @@ def calibrate_fold_predictions(rows: list[dict[str, Any]]) -> list[dict[str, Any
     for method, (mapping, val_input, test_input) in mappings.items():
         calibrated_val = np.asarray(mapping(val_input), dtype=float)
         calibrated_test = np.asarray(mapping(test_input), dtype=float)
-        threshold = _threshold(val_y, calibrated_val)
+        threshold = select_f1_threshold(val_y, calibrated_val)
         view = compute_binary_metrics(test_y, calibrated_test, threshold)
         unique = aggregate_unique_impact(
             [

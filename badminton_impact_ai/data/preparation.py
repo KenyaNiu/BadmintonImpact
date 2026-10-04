@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import csv
-import json
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import yaml
+
+from badminton_impact_ai.io import read_csv, write_csv, write_json
 
 from .context_labels import build_context_normalized_loso
 from .label_extraction import compute_contact_state_labels_from_fz
@@ -47,7 +47,17 @@ def extract_base_labels(data_root: Path, fps: float = 120.0) -> tuple[list[dict[
                     "npz_path": str(path),
                     "rel_path": rel_path,
                     "source_grf_key": source_key,
-                    **{key: parsed[key] for key in ("subject_id", "camera_id", "trial_id", "stage", "fatigue_state", "unique_impact_key_candidate")},
+                    **{
+                        key: parsed[key]
+                        for key in (
+                            "subject_id",
+                            "camera_id",
+                            "trial_id",
+                            "stage",
+                            "fatigue_state",
+                            "unique_impact_key_candidate",
+                        )
+                    },
                     **labels,
                 }
             )
@@ -75,17 +85,40 @@ def _pose_descriptors(keypoints: np.ndarray) -> tuple[np.ndarray, list[str]]:
         else np.ones(keypoints.shape[:2], dtype=float).reshape(-1)
     )
     values = [
-        np.mean(flat), np.std(flat), np.min(flat), np.max(flat),
-        np.percentile(flat, 25), np.percentile(flat, 50), np.percentile(flat, 75),
-        np.mean(coordinates[0]), np.mean(coordinates[-1]), np.mean(coordinates[-1] - coordinates[0]),
-        np.mean(velocity), np.std(velocity), np.max(np.abs(velocity)),
-        np.mean(confidence), np.min(confidence), np.std(confidence),
+        np.mean(flat),
+        np.std(flat),
+        np.min(flat),
+        np.max(flat),
+        np.percentile(flat, 25),
+        np.percentile(flat, 50),
+        np.percentile(flat, 75),
+        np.mean(coordinates[0]),
+        np.mean(coordinates[-1]),
+        np.mean(coordinates[-1] - coordinates[0]),
+        np.mean(velocity),
+        np.std(velocity),
+        np.max(np.abs(velocity)),
+        np.mean(confidence),
+        np.min(confidence),
+        np.std(confidence),
     ]
     names = [
-        "mean", "std", "min", "max", "p25", "p50", "p75",
-        "first_frame_mean", "last_frame_mean", "delta_last_first_mean",
-        "velocity_mean", "velocity_std", "velocity_max_abs",
-        "confidence_mean", "confidence_min", "confidence_std",
+        "mean",
+        "std",
+        "min",
+        "max",
+        "p25",
+        "p50",
+        "p75",
+        "first_frame_mean",
+        "last_frame_mean",
+        "delta_last_first_mean",
+        "velocity_mean",
+        "velocity_std",
+        "velocity_max_abs",
+        "confidence_mean",
+        "confidence_min",
+        "confidence_std",
     ]
     return np.asarray(values, dtype=np.float32), names
 
@@ -136,19 +169,21 @@ def build_pose_features(
 
     matrix = np.vstack(features).astype(np.float32) if features else np.zeros((0, 16), dtype=np.float32)
     valid_metadata = [row for row in metadata if row["feature_valid"]]
-    return matrix, feature_names, metadata, {
-        "eligible_views": len(unique),
-        "feature_rows": len(valid_metadata),
-        "feature_dim": int(matrix.shape[1]),
-        "invalid": dict(invalid),
-    }
+    return (
+        matrix,
+        feature_names,
+        metadata,
+        {
+            "eligible_views": len(unique),
+            "feature_rows": len(valid_metadata),
+            "feature_dim": int(matrix.shape[1]),
+            "invalid": dict(invalid),
+        },
+    )
 
 
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+def _write_table(path: Path, rows: list[dict[str, Any]]) -> None:
+    write_csv(path, rows, fieldnames=list(rows[0]))
 
 
 def prepare_dataset(config_path: Path, overwrite: bool = False) -> Path:
@@ -163,14 +198,13 @@ def prepare_dataset(config_path: Path, overwrite: bool = False) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if config.get("base_labels"):
-        with Path(config["base_labels"]).open("r", encoding="utf-8", newline="") as stream:
-            base_rows = list(csv.DictReader(stream))
+        base_rows = read_csv(Path(config["base_labels"]))
         extraction_audit = {"source": "existing_csv", "rows_written": len(base_rows)}
     else:
         base_rows, extraction_audit = extract_base_labels(data_root, fps=float(config.get("fps", 120.0)))
     if not base_rows:
         raise RuntimeError("no label rows were extracted")
-    _write_csv(out_dir / "base_labels.csv", base_rows)
+    _write_table(out_dir / "base_labels.csv", base_rows)
 
     labeled, threshold_audit = build_context_normalized_loso(
         base_rows,
@@ -179,7 +213,7 @@ def prepare_dataset(config_path: Path, overwrite: bool = False) -> Path:
     )
     for row in labeled:
         row["npz_path"] = str(data_root / row["rel_path"]) if row.get("rel_path") else row["npz_path"]
-    _write_csv(out_dir / "context_labels_event_q75.csv", labeled)
+    _write_table(out_dir / "context_labels_event_q75.csv", labeled)
 
     matrix, feature_names, metadata, feature_audit = build_pose_features(base_rows, data_root)
     valid_metadata = [row for row in metadata if row["feature_valid"]]
@@ -190,9 +224,7 @@ def prepare_dataset(config_path: Path, overwrite: bool = False) -> Path:
         npz_path=np.asarray([row["npz_path"] for row in valid_metadata], dtype=str),
         feature_names=np.asarray(feature_names, dtype=str),
     )
-    _write_csv(out_dir / "pose_features_unique_meta.csv", metadata)
+    _write_table(out_dir / "pose_features_unique_meta.csv", metadata)
     audit = {"label_extraction": extraction_audit, "thresholds": threshold_audit, "features": feature_audit}
-    (out_dir / "preparation_audit.json").write_text(
-        json.dumps(audit, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    write_json(out_dir / "preparation_audit.json", audit)
     return out_dir

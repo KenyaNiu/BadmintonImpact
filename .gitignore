@@ -1,24 +1,15 @@
-# --- Repo-root Tier~1 mirror / symlink tree (local only) ---
+# Data, runs and generated artefacts (never versioned)
 /data/
-
-# --- Local secrets & machine-specific YAML ---
-.env
-
-# --- Large binaries & training artifacts ---
-*.pt
-*.pth
 outputs/
 checkpoints/
 logs/
-wandb/
-
-# --- Generated / bulky file types ---
 *.npz
-*.csv
-*.jsonl
-*.pkl
 *.npy
+*.pkl
+*.pt
+*.pth
 *.parquet
+*.csv
 *.mp4
 *.avi
 *.mov
@@ -26,56 +17,27 @@ wandb/
 *.c3d
 *.jpg
 *.jpeg
-*.png
 *.webp
-
-# --- Local manuscript bundles & offline archives (not published with minimal code) ---
-archive/
-
-# README hero figure (ranking showcase)
-!docs/prioritization_showcase_top3.png
-
-# LaTeX junk
-*.aux
-*.log
-*.out
-*.toc
-*.fls
-*.fdb_latexmk
-*.synctex.gz
-archive_cleanup/
-
-# Python / tooling
-__pycache__/
-.pytest_cache/
-*.pyc
-*.egg-info/
-dist/
-.DS_Store
-
-# IDE / local agent bundles
-.trae/
-.claude/
-
-# README → PDF auto-build artifacts
-build/
-
-# Track these root files explicitly (single project README = /README.md only)
-!/README.md
-!/LICENSE
-!/pyproject.toml
-!docs/
-!src/
-!tools/
-!training/
-!tests/
-
-# --- Local run configuration, manuscript sources and build products (not published here) ---
-configs/preparation.local.yaml
-/tmp/
-
-# README charts
+*.png
 !docs/assets/*.png
+
+# Local configuration and secrets
+configs/preparation.local.yaml
+.env
 
 # Manuscript sources are kept out of this repository
 /paper/
+
+# Python, tooling and editors
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+.claude/

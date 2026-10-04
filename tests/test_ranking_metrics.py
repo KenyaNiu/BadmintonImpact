@@ -5,7 +5,12 @@ from badminton_impact_ai.metrics import trial_top_fraction_metrics
 
 def test_top_fraction_aggregates_views_before_ranking() -> None:
     rows = []
-    for impact, label, scores in (("a", 1, [0.9, 0.7]), ("b", 0, [0.8, 0.6]), ("c", 0, [0.2, 0.1]), ("d", 0, [0.3, 0.2])):
+    for impact, label, scores in (
+        ("a", 1, [0.9, 0.7]),
+        ("b", 0, [0.8, 0.6]),
+        ("c", 0, [0.2, 0.1]),
+        ("d", 0, [0.3, 0.2]),
+    ):
         for score in scores:
             rows.append(
                 {

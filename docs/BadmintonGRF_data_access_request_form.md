@@ -82,8 +82,6 @@ By submitting this form, the applicant and PI agree to:
 5. Cite BadmintonGRF and this work in publications that use the data.  
    在基于该数据发表的成果中引用 BadmintonGRF 及相关论文。
 
-Reference policy / 政策说明: `BadmintonGRF_data_access_policy.md` (same folder / 同目录)
-
 ---
 
 ## 6. Signature / 签字确认

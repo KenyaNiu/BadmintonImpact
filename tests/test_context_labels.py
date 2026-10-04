@@ -32,4 +32,6 @@ def test_quantile_weights_each_impact_once() -> None:
     fold = next(value for value in summary["folds"].values() if value["test_subject"] == "s2")
     assert fold["context_stats_train"]["stage|fresh"]["threshold"] == 5.0
     assert fold["context_stats_train"]["stage|fresh"]["count"] == 2
-    assert {row["context_high_impact"] for row in labeled if row["test_subject"] == "s2" and row["peak_fz"] == "2.0"} == {0}
+    assert {
+        row["context_high_impact"] for row in labeled if row["test_subject"] == "s2" and row["peak_fz"] == "2.0"
+    } == {0}

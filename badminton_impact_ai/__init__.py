@@ -1,3 +1,3 @@
-"""BadmintonImpact research code."""
+"""Context-relative ranking of badminton landing events from markerless pose."""
 
-__all__ = ["data", "experiment", "metrics", "models", "stats"]
+__version__ = "1.0.0"

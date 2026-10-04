@@ -1,0 +1,51 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the article below."
+title: "BadmintonImpact: Context-Relative Ranking of Pre-Segmented Badminton Landing Events from Markerless Pose for Coach Review"
+type: software
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/KenyaNiu/BadmintonImpact"
+authors:
+  - family-names: Niu
+    given-names: Kuoye
+  - family-names: Song
+    given-names: Xian
+  - family-names: Xie
+    given-names: Yilun
+  - family-names: Sun
+    given-names: "Jia'ao"
+  - family-names: Yang
+    given-names: Lumeng
+  - family-names: Wan
+    given-names: Puyang
+  - family-names: Ding
+    given-names: Ziran
+  - family-names: Ma
+    given-names: Yong
+  - family-names: Li
+    given-names: Jianwei
+preferred-citation:
+  type: article
+  title: "BadmintonImpact: Context-Relative Ranking of Pre-Segmented Badminton Landing Events from Markerless Pose for Coach Review"
+  journal: "IET Cyber-Systems and Robotics"
+  year: 2026
+  notes: "Accepted; volume, pages and DOI to be added on publication."
+  authors:
+    - family-names: Niu
+      given-names: Kuoye
+    - family-names: Song
+      given-names: Xian
+    - family-names: Xie
+      given-names: Yilun
+    - family-names: Sun
+      given-names: "Jia'ao"
+    - family-names: Yang
+      given-names: Lumeng
+    - family-names: Wan
+      given-names: Puyang
+    - family-names: Ding
+      given-names: Ziran
+    - family-names: Ma
+      given-names: Yong
+    - family-names: Li
+      given-names: Jianwei

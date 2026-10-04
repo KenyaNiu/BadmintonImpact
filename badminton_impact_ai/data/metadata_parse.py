@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 _SUBJECT_RE = re.compile(r"(sub_\d{3})", re.IGNORECASE)
 _CAMERA_RE = re.compile(r"(?:cam(?:era)?[_-]?)(\d+)", re.IGNORECASE)
 _IMPACT_RE = re.compile(r"impact[_-]?(\d+)", re.IGNORECASE)

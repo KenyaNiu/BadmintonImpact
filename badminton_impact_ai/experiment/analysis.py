@@ -1,64 +1,72 @@
-"""Aggregate one completed canonical run without retraining."""
+"""Aggregate a completed run into fold summaries, paired comparisons, calibration and subgroup tables."""
 
 from __future__ import annotations
 
-import csv
 import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import yaml
 
-from badminton_impact_ai.metrics import aggregate_unique_impact, calibrate_fold_predictions, compute_binary_metrics
+from badminton_impact_ai.io import read_csv, write_csv, write_json
+from badminton_impact_ai.metrics import (
+    aggregate_unique_impact,
+    calibrate_fold_predictions,
+    compute_binary_metrics,
+    select_f1_threshold,
+)
 from badminton_impact_ai.stats import paired_fold_summary
 
+CANDIDATE, REFERENCE = "cn_hildnet", "hgb_pose_context"  # the paired comparison reported in the paper
+REVIEW_METRICS = ("precision_at_fraction", "recall_at_fraction", "ndcg_at_fraction")
+SUBGROUPS = (
+    ("rally", lambda row: row.get("stage") == "rally"),
+    ("non_rally", lambda row: row.get("stage") != "rally"),
+    ("fresh", lambda row: row.get("fatigue_state") == "fresh"),
+    ("fatigued", lambda row: row.get("fatigue_state") == "fatigued"),
+)
 
-def _read_csvs(paths: list[Path]) -> list[dict[str, str]]:
-    rows = []
-    for path in paths:
-        with path.open("r", encoding="utf-8", newline="") as stream:
-            rows.extend(csv.DictReader(stream))
-    return rows
-
-
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    fields = sorted({key for row in rows for key in row}) if rows else []
-    with path.open("w", encoding="utf-8", newline="") as stream:
-        if fields:
-            writer = csv.DictWriter(stream, fieldnames=fields)
-            writer.writeheader()
-            writer.writerows(rows)
+ModelFold = tuple[str, str, str]  # (model, task_mode, fold)
 
 
-def analyze_run(run_dir: Path) -> Path:
-    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
-    if status.get("state") != "complete":
-        raise RuntimeError("analysis requires a completed run")
-    config = __import__("yaml").safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))
-    metric_rows = _read_csvs(sorted((run_dir / "metrics").glob("*.csv")))
+def _auroc_summaries(metric_rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Fold-wise AUROC mean and SD for every (model, task mode, resolution, task)."""
     groups: dict[tuple[str, str, str, str], list[float]] = defaultdict(list)
     for row in metric_rows:
         if row.get("AUROC") not in {None, "", "nan", "NaN"}:
             groups[(row["model"], row["task_mode"], row["resolution"], row["task"])].append(float(row["AUROC"]))
-    summaries = [
+    return [
         {
-            "model": key[0],
-            "task_mode": key[1],
-            "resolution": key[2],
-            "task": key[3],
+            "model": model,
+            "task_mode": task_mode,
+            "resolution": resolution,
+            "task": task,
             "fold_count": len(values),
             "AUROC_mean": float(np.mean(values)),
             "AUROC_std": float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
         }
-        for key, values in sorted(groups.items())
+        for (model, task_mode, resolution, task), values in sorted(groups.items())
     ]
 
+
+def _paired(maps: dict[str, dict[str, float]], evaluation: dict[str, Any]) -> dict[str, Any] | None:
+    if not (maps[CANDIDATE] and maps[REFERENCE]):
+        return None
+    return paired_fold_summary(
+        maps[CANDIDATE],
+        maps[REFERENCE],
+        bootstrap_draws=int(evaluation["bootstrap_draws"]),
+        seed=int(evaluation["statistical_seed"]),
+    )
+
+
+def _paired_auroc(metric_rows: list[dict[str, str]], evaluation: dict[str, Any]) -> dict[str, Any]:
     comparisons: dict[str, Any] = {}
     for resolution in ("unique_impact", "view"):
-        maps = {}
-        for model in ("cn_hildnet", "hgb_pose_context"):
-            maps[model] = {
+        maps = {
+            model: {
                 row["fold"]: float(row["AUROC"])
                 for row in metric_rows
                 if row.get("model") == model
@@ -66,116 +74,135 @@ def analyze_run(run_dir: Path) -> Path:
                 and row.get("resolution") == resolution
                 and row.get("task") == "classification"
             }
-        if maps["cn_hildnet"] and maps["hgb_pose_context"]:
-            comparisons[f"cn_minus_hgb_{resolution}"] = paired_fold_summary(
-                maps["cn_hildnet"],
-                maps["hgb_pose_context"],
-                bootstrap_draws=int(config["evaluation"]["bootstrap_draws"]),
-                seed=int(config["evaluation"]["statistical_seed"]),
-            )
+            for model in (CANDIDATE, REFERENCE)
+        }
+        if (summary := _paired(maps, evaluation)) is not None:
+            comparisons[f"cn_minus_hgb_{resolution}"] = summary
+    return comparisons
 
-    top_fraction_rows = []
+
+def _top_fraction_by_fold(run_dir: Path) -> list[dict[str, Any]]:
+    """Trial-macro review-budget metrics averaged within each fold."""
+    table = []
     for path in sorted((run_dir / "analysis").glob("*__top_fraction.csv")):
         model, task_mode, _ = path.stem.split("__", 2)
-        rows = _read_csvs([path])
+        rows = read_csv(path)
         for fold in sorted({row["fold"] for row in rows}):
             fold_rows = [row for row in rows if row["fold"] == fold]
-            summary_row: dict[str, Any] = {"model": model, "task_mode": task_mode, "fold": fold}
-            for metric in ("precision_at_fraction", "recall_at_fraction", "ndcg_at_fraction"):
+            entry: dict[str, Any] = {"model": model, "task_mode": task_mode, "fold": fold}
+            for metric in REVIEW_METRICS:
                 values = np.asarray([float(row[metric]) for row in fold_rows], dtype=float)
                 values = values[np.isfinite(values)]
-                summary_row[metric] = float(np.mean(values)) if values.size else float("nan")
-            top_fraction_rows.append(summary_row)
-    for metric in ("precision_at_fraction", "recall_at_fraction", "ndcg_at_fraction"):
+                entry[metric] = float(np.mean(values)) if values.size else float("nan")
+            table.append(entry)
+    return table
+
+
+def _paired_review(table: list[dict[str, Any]], evaluation: dict[str, Any]) -> dict[str, Any]:
+    comparisons: dict[str, Any] = {}
+    for metric in REVIEW_METRICS:
         maps = {
             model: {
                 row["fold"]: float(row[metric])
-                for row in top_fraction_rows
+                for row in table
                 if row["model"] == model and row["task_mode"] == "cls_peak" and np.isfinite(float(row[metric]))
             }
-            for model in ("cn_hildnet", "hgb_pose_context")
+            for model in (CANDIDATE, REFERENCE)
         }
-        if maps["cn_hildnet"] and maps["hgb_pose_context"]:
-            comparisons[f"cn_minus_hgb_top20_{metric}"] = paired_fold_summary(
-                maps["cn_hildnet"],
-                maps["hgb_pose_context"],
-                bootstrap_draws=int(config["evaluation"]["bootstrap_draws"]),
-                seed=int(config["evaluation"]["statistical_seed"]),
-            )
+        if (summary := _paired(maps, evaluation)) is not None:
+            comparisons[f"cn_minus_hgb_top20_{metric}"] = summary
+    return comparisons
 
-    prediction_sets: dict[str, set[tuple[str, str]]] = defaultdict(set)
-    predictions_by_model_fold: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
+
+def _load_predictions(run_dir: Path) -> tuple[dict[ModelFold, list[dict[str, str]]], dict[str, set[tuple[str, str]]]]:
+    """Prediction rows grouped by (model, task mode, fold) and the test sample set of every model."""
+    by_model_fold: dict[ModelFold, list[dict[str, str]]] = defaultdict(list)
+    test_sets: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for path in sorted((run_dir / "predictions").glob("*.csv")):
-        for row in _read_csvs([path]):
-            predictions_by_model_fold[(row["model"], row["task_mode"], row["fold"])].append(row)
+        for row in read_csv(path):
+            by_model_fold[(row["model"], row["task_mode"], row["fold"])].append(row)
             if row["split"] == "test":
-                prediction_sets[f"{row['model']}/{row['task_mode']}"].add((row["fold"], row["sample_id"]))
-    cohort_match = bool(prediction_sets) and len({frozenset(values) for values in prediction_sets.values()}) == 1
-    if not cohort_match:
-        raise AssertionError("paper-facing models do not share one test cohort")
+                test_sets[f"{row['model']}/{row['task_mode']}"].add((row["fold"], row["sample_id"]))
+    return by_model_fold, test_sets
 
-    analysis_dir = run_dir / "analysis"
-    analysis_dir.mkdir(parents=True, exist_ok=True)
-    _write_csv(analysis_dir / "top_fraction_by_fold.csv", top_fraction_rows)
-    calibration_rows = []
-    for (model, task_mode, fold), rows in predictions_by_model_fold.items():
-        if model not in {"cn_hildnet", "hgb_pose_context"} or task_mode != "cls_peak":
-            continue
-        for row in calibrate_fold_predictions(rows):
-            calibration_rows.append({"model": model, "task_mode": task_mode, "fold": fold, **row})
-    _write_csv(analysis_dir / "calibration.csv", calibration_rows)
 
-    subgroup_rows = []
-    for (model, task_mode, fold), rows in predictions_by_model_fold.items():
-        from sklearn.metrics import f1_score
+def _calibration_table(by_model_fold: dict[ModelFold, list[dict[str, str]]]) -> list[dict[str, Any]]:
+    table = []
+    for (model, task_mode, fold), rows in by_model_fold.items():
+        if model in {CANDIDATE, REFERENCE} and task_mode == "cls_peak":
+            table.extend(
+                {"model": model, "task_mode": task_mode, "fold": fold, **row}
+                for row in calibrate_fold_predictions(rows)
+            )
+    return table
 
+
+def _subgroup_table(by_model_fold: dict[ModelFold, list[dict[str, str]]]) -> list[dict[str, Any]]:
+    """Held-out metrics per subgroup (rally/non-rally, fresh/fatigued) at the validation-selected threshold."""
+    table = []
+    for (model, task_mode, fold), rows in by_model_fold.items():
         validation = [row for row in rows if row["split"] == "val"]
-        val_labels = np.asarray([float(row["y_true_cls"]) for row in validation])
-        val_scores = np.asarray([float(row["y_prob"]) for row in validation])
-        threshold = float(
-            max(np.linspace(0.05, 0.95, 37), key=lambda value: f1_score(val_labels, val_scores >= value, zero_division=0))
+        threshold = select_f1_threshold(
+            np.asarray([float(row["y_true_cls"]) for row in validation]),
+            np.asarray([float(row["y_prob"]) for row in validation]),
         )
         test = [row for row in rows if row["split"] == "test"]
-        for subgroup, subset in (
-            ("rally", [row for row in test if row.get("stage") == "rally"]),
-            ("non_rally", [row for row in test if row.get("stage") != "rally"]),
-            ("fresh", [row for row in test if row.get("fatigue_state") == "fresh"]),
-            ("fatigued", [row for row in test if row.get("fatigue_state") == "fatigued"]),
-        ):
+        for subgroup, belongs in SUBGROUPS:
+            subset = [row for row in test if belongs(row)]
+            key = {"model": model, "task_mode": task_mode, "fold": fold, "subgroup": subgroup}
             if not subset:
-                subgroup_rows.append({"model": model, "task_mode": task_mode, "fold": fold, "subgroup": subgroup, "resolution": "view", "excluded_reason": "no_samples"})
+                table.append({**key, "resolution": "view", "excluded_reason": "no_samples"})
                 continue
             labels = np.asarray([float(row["y_true_cls"]) for row in subset])
             scores = np.asarray([float(row["y_prob"]) for row in subset])
-            view = compute_binary_metrics(labels, scores, threshold)
             unique = aggregate_unique_impact(subset, pred_keys=("y_true_cls", "y_prob"))
-            for resolution, count, unique_count, metrics in (
-                ("view", len(subset), len(unique["y_true_cls"]), view),
-                ("unique_impact", len(subset), len(unique["y_true_cls"]), compute_binary_metrics(unique["y_true_cls"], unique["y_prob"], threshold)),
+            for resolution, metrics in (
+                ("view", compute_binary_metrics(labels, scores, threshold)),
+                ("unique_impact", compute_binary_metrics(unique["y_true_cls"], unique["y_prob"], threshold)),
             ):
-                reason = "single_class" if not np.isfinite(metrics["AUROC"]) else ""
-                subgroup_rows.append(
+                table.append(
                     {
-                        "model": model,
-                        "task_mode": task_mode,
-                        "fold": fold,
-                        "subgroup": subgroup,
+                        **key,
                         "resolution": resolution,
-                        "view_count": count,
-                        "unique_impact_count": unique_count,
-                        "excluded_reason": reason,
+                        "view_count": len(subset),
+                        "unique_impact_count": len(unique["y_true_cls"]),
+                        "excluded_reason": "single_class" if not np.isfinite(metrics["AUROC"]) else "",
                         **metrics,
                     }
                 )
-    _write_csv(analysis_dir / "subgroups.csv", subgroup_rows)
+    return table
 
-    output = {
-        "run_dir": str(run_dir.resolve()),
-        "cohort_match": cohort_match,
-        "test_cohort_counts": {key: len(value) for key, value in prediction_sets.items()},
-        "summaries": summaries,
-        "paired_comparisons": comparisons,
-    }
+
+def analyze_run(run_dir: Path) -> Path:
+    """Analyse a completed run (no retraining) and return the path of ``analysis/summary.json``."""
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    if status.get("state") != "complete":
+        raise RuntimeError("analysis requires a completed run")
+    config = yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))
+    evaluation = config["evaluation"]
+    analysis_dir = run_dir / "analysis"
+
+    metric_rows = [row for path in sorted((run_dir / "metrics").glob("*.csv")) for row in read_csv(path)]
+    review_table = _top_fraction_by_fold(run_dir)
+    comparisons = {**_paired_auroc(metric_rows, evaluation), **_paired_review(review_table, evaluation)}
+
+    by_model_fold, test_sets = _load_predictions(run_dir)
+    if not (test_sets and len({frozenset(values) for values in test_sets.values()}) == 1):
+        raise AssertionError("paper-facing models do not share one test cohort")
+
+    write_csv(analysis_dir / "top_fraction_by_fold.csv", review_table)
+    write_csv(analysis_dir / "calibration.csv", _calibration_table(by_model_fold))
+    write_csv(analysis_dir / "subgroups.csv", _subgroup_table(by_model_fold))
+
     summary_path = analysis_dir / "summary.json"
-    summary_path.write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_json(
+        summary_path,
+        {
+            "run_dir": str(run_dir.resolve()),
+            "cohort_match": True,
+            "test_cohort_counts": {key: len(value) for key, value in test_sets.items()},
+            "summaries": _auroc_summaries(metric_rows),
+            "paired_comparisons": comparisons,
+        },
+    )
     return summary_path

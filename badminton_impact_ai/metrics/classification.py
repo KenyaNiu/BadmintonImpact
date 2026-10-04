@@ -1,4 +1,4 @@
-"""Classification metrics and calibration helpers."""
+"""Binary-classification metrics, F1 threshold selection and view -> physical-impact aggregation."""
 
 from __future__ import annotations
 
@@ -17,10 +17,8 @@ def compute_ece(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> flo
     ece = 0.0
     for i in range(n_bins):
         lo, hi = bins[i], bins[i + 1]
-        if i == n_bins - 1:
-            mask = (y_prob >= lo) & (y_prob <= hi)
-        else:
-            mask = (y_prob >= lo) & (y_prob < hi)
+        upper_ok = y_prob <= hi if i == n_bins - 1 else y_prob < hi  # the last bin is closed on the right
+        mask = (y_prob >= lo) & upper_ok
         if np.sum(mask) == 0:
             continue
         conf = float(np.mean(y_prob[mask]))
@@ -29,35 +27,24 @@ def compute_ece(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> flo
     return float(ece)
 
 
-def compute_ece_equal_frequency(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> float:
-    """Expected calibration error with equal-mass (quantile) bins on predicted probabilities.
+F1_THRESHOLD_GRID = np.linspace(0.05, 0.95, 37)
 
-    Sorts by ``y_prob`` and partitions into ``n_bins`` groups with (approximately) equal counts,
-    then applies the standard ECE weighting |acc - conf| per bin. Reduces sensitivity to empty or
-    dominant equal-width intervals when the score distribution is skewed.
-    """
-    y_true = np.asarray(y_true, dtype=float).ravel()
-    y_prob = np.asarray(y_prob, dtype=float).ravel()
-    n = y_true.size
-    if n == 0:
-        return float("nan")
-    order = np.argsort(y_prob)
-    y_s = y_true[order]
-    p_s = y_prob[order]
-    ece = 0.0
-    for i in range(n_bins):
-        lo = i * n // n_bins
-        hi = (i + 1) * n // n_bins if i < n_bins - 1 else n
-        if hi <= lo:
-            continue
-        acc = float(np.mean(y_s[lo:hi]))
-        conf = float(np.mean(p_s[lo:hi]))
-        ece += ((hi - lo) / n) * abs(acc - conf)
-    return float(ece)
+
+def select_f1_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    """Operating threshold with the best F1 on a fixed 37-point grid (used on validation data only)."""
+    from sklearn.metrics import f1_score
+
+    return float(max(F1_THRESHOLD_GRID, key=lambda t: f1_score(y_true, y_prob >= t, zero_division=0)))
 
 
 def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float) -> dict[str, float]:
-    from sklearn.metrics import average_precision_score, balanced_accuracy_score, brier_score_loss, f1_score, roc_auc_score
+    from sklearn.metrics import (
+        average_precision_score,
+        balanced_accuracy_score,
+        brier_score_loss,
+        f1_score,
+        roc_auc_score,
+    )
 
     y_true = np.asarray(y_true, dtype=float)
     y_prob = np.asarray(y_prob, dtype=float)
@@ -96,7 +83,6 @@ def compute_binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: fl
 def aggregate_unique_impact(
     rows: list[dict[str, Any]],
     group_col: str = "unique_impact_key_candidate",
-    prob_key: str = "y_prob",
     pred_keys: tuple[str, ...] = ("y_true", "y_prob"),
 ) -> dict[str, np.ndarray]:
     grouped: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
